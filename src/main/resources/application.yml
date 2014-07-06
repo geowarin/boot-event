@@ -1,0 +1,5 @@
+spring.data.mongodb:
+  uri: mongodb://localhost/stream
+
+spring.data.gmongo:
+  uri: mongodb://localhost/stream
