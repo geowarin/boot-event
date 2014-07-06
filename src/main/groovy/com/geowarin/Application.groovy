@@ -1,11 +1,13 @@
 package com.geowarin
 
 import com.geowarin.model.Lunch
-import com.geowarin.model.LunchRepository
-import com.mongodb.BasicDBObject
+import com.geowarin.service.LunchService
+import com.geowarin.utils.DateUtils
 import com.mongodb.Bytes
-import com.mongodb.DB
+import com.mongodb.DBCollection
+import org.bson.types.ObjectId
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration
 import org.springframework.context.annotation.ComponentScan
@@ -17,8 +19,6 @@ import org.springframework.web.context.request.async.DeferredResult
 
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
-import java.time.LocalDateTime
-import java.time.ZoneOffset
 import java.util.concurrent.Callable
 
 @Configuration
@@ -31,28 +31,6 @@ class Application {
     static void main(String[] args) {
         SpringApplication.run Application, args
     }
-
-//    @RequestMapping('mongostream')
-//    void stream() {
-//
-//
-//        DBObject query =
-//                lastReceivedEventId.isPresent()
-//        ? BasicDBObjectBuilder.start("_id",
-//                BasicDBObjectBuilder
-//                .start("$gte", lookFrom(lastReceivedEventId.get())).get())
-//                .get()
-//        : null;
-//
-//        DBObject sortBy = BasicDBObjectBuilder.start("$natural", 1).get();
-//
-//        DBCollection collection = null;// must be a capped collection
-//        DBCursor cursor = collection
-//                .find(query)
-//                .sort(sortBy)
-//                .addOption(Bytes.QUERYOPTION_TAILABLE)
-//                .addOption(Bytes.QUERYOPTION_AWAITDATA);
-//    }
 
     class LunchUpdateReader implements Runnable {
         private final PrintWriter writer
@@ -68,40 +46,42 @@ class Application {
                 Lunch lunch = lunchFinder.call()
                 writer.println('retry: 10000')
                 writer.println('event: truc')
-                writer.println("id: ${lunch.time}")
-                writer.println("data: new lunch !! at ${lunch.time}\n")
+//                writer.println("id: ${lunch.time}")
+//                writer.println("data: new lunch !! at ${lunch.time}\n")
+                writer.println("data: Lunch updated : ${lunch}\n")
                 writer.flush()
             }
         }
     }
 
-    class LunchUpdateFinder implements Callable<Lunch> {
-        private final LunchRepository repository
+    class LunchUpdateFinder implements Callable {
         private cursor
 
-        LunchUpdateFinder(LunchRepository repository, DB db) {
-            this.repository = repository
-            def now = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
-            cursor = db.lunch.find(time: new BasicDBObject('$gt', now))
+        LunchUpdateFinder(def lunchId, DBCollection opLog) {
+
+            def now = DateUtils.currentBSONTimeStamp()
+            cursor = opLog.find(ts: ['$gt': now], 'o._id' : new ObjectId(lunchId), ns: 'stream.lunch', op: 'u')
                     .addOption(Bytes.QUERYOPTION_TAILABLE)
                     .addOption(Bytes.QUERYOPTION_AWAITDATA)
         }
 
         Lunch call() throws Exception {
             while (true) {
-                def lunch = cursor.next()
-                return new Lunch(id: lunch.id, time: lunch.time)
+                def update = cursor.next()
+
+                def lunchObj = update.o
+                println lunchObj
+                return new Lunch(time: lunchObj.time, name: lunchObj.name)
             }
         }
     }
 
+    @Autowired
+    @Qualifier('oplog')
+    DBCollection opLogs
 
     @Autowired
-    LunchRepository repository
-
-    @Autowired
-    DB db
-
+    LunchService lunchService
 
     @RequestMapping('events')
     DeferredResult<String> event(HttpServletRequest request, HttpServletResponse response) {
@@ -116,8 +96,10 @@ class Application {
         String lastEventId = request.getHeader('Last-Event-ID')
         Number eventId = lastEventId ? lastEventId.toLong() : 0
 
+        def randomLunch = lunchService.getRandomLunch()
+        println "Will query updates for lunch ${randomLunch.name} - id = ${randomLunch.id}"
 
-        new LunchUpdateReader(response.writer, new LunchUpdateFinder(repository, db)).run()
+        new LunchUpdateReader(response.writer, new LunchUpdateFinder(randomLunch.id, opLogs)).run()
 
         result.onTimeout {
             println 'Timeout'

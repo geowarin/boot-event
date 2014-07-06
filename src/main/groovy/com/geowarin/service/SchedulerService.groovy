@@ -1,13 +1,10 @@
 package com.geowarin.service
 
-import com.geowarin.model.Lunch
 import com.geowarin.model.LunchRepository
+import com.geowarin.utils.DateUtils
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
-
-import java.time.LocalDateTime
-import java.time.ZoneOffset
 
 /**
  *
@@ -21,25 +18,38 @@ class SchedulerService {
     @Autowired
     LunchRepository repository
 
+    @Autowired
+    LunchService service
+
     Random random = new Random()
 
-//    @Scheduled(fixedDelay = 1000L)
-//    void scheduled() {
-//
-//        if (random.nextBoolean()) {
-//            long now = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
-//            Lunch lunch = repository.findAll()[0]
-//            lunch.time = now
-//            repository.save(lunch)
-//            println 'updated lunch'
-//        }
-//    }
+    @Scheduled(fixedDelay = 1000L)
+    void scheduled() {
 
-    @Scheduled(fixedDelay = 2000L)
-    void createLunch() {
-        long now = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
-        repository.save(new Lunch(time: now))
-        println 'new lunch'
+        def lunchToUpdate = service.getRandomLunch()
+        def lunchName = lunchToUpdate.name
+
+        switch (random.nextInt(3)) {
+            case 0:
+                lunchToUpdate.name = shuffleName(lunchName)
+                println "Changed name from $lunchName to ${lunchToUpdate.name}"
+                break
+            case 1:
+                lunchToUpdate.time = DateUtils.timestamp()
+                println "Updated $lunchName time"
+                break
+            case 3:
+                println 'Nothing'
+                break
+        }
+
+        repository.save(lunchToUpdate)
+    }
+
+    static String shuffleName(String name) {
+        def chars = name.toList()
+        Collections.shuffle(chars)
+        return chars.join()
     }
 
 }

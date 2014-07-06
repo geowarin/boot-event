@@ -14,5 +14,6 @@ import org.springframework.data.mongodb.core.mapping.Document
 class Lunch {
     @Id
     String id
+    String name
     long time
 }
