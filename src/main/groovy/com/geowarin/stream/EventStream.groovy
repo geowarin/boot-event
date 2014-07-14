@@ -16,6 +16,7 @@ class EventStream {
     private final DeferredResult result
     private final PrintWriter writer
     private Number eventId
+    private static final CLIENT_RETRY_TIMEOUT = 2000;
 
     EventStream(HttpServletResponse response, Number eventId) {
         this.eventId = eventId
@@ -25,8 +26,8 @@ class EventStream {
     }
 
     void write(Object data) {
-        writer.println('retry: 10000')
-        writer.println('event: truc')
+        writer.println("retry: ${CLIENT_RETRY_TIMEOUT}")
+//        writer.println('event: truc')
 //                writer.println("id: ${lunch.time}")
         writer.println("data: ${data}\n")
         writer.flush()

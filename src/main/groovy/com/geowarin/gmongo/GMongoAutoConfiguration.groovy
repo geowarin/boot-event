@@ -1,8 +1,11 @@
 package com.geowarin.gmongo
 
+import com.geowarin.utils.DateUtils
 import com.gmongo.GMongo
+import com.mongodb.Bytes
 import com.mongodb.DB
 import com.mongodb.DBCollection
+import com.mongodb.DBCursor
 import com.mongodb.Mongo
 import com.mongodb.MongoURI
 import org.springframework.beans.factory.annotation.Autowired
@@ -58,4 +61,28 @@ class GMongoAutoConfiguration {
     DBCollection opLog(@Qualifier('local') DB localDb) {
         localDb.getCollection('oplog.rs')
     }
+
+    @Bean
+    TailableCursorFactory getOpLogTail(@Qualifier('opLog') DBCollection opLog) {
+        return new TailableCursorFactory(opLog)
+    }
+
+    class TailableCursorFactory {
+        private final DBCollection opLog
+
+        TailableCursorFactory(DBCollection opLog) {
+            this.opLog = opLog
+        }
+
+        DBCursor getTail(Map queryParams) {
+            queryParams.ts = ['$gt': DateUtils.currentBSONTimeStamp()]
+            DBCursor query = opLog.find(queryParams)
+
+            return query
+                    .addOption(Bytes.QUERYOPTION_TAILABLE)
+                    .addOption(Bytes.QUERYOPTION_AWAITDATA)
+        }
+    }
+
+
 }

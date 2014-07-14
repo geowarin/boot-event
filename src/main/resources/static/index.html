@@ -20,7 +20,7 @@
     }
 
     var onMessage = function (event) {
-        var message = 'message : ' + event.data;
+        var message = event.type + ' : ' + event.data;
         createDiv(message);
     };
     var onOpen = function(e) {
@@ -31,14 +31,8 @@
         createDiv(message);
     };
 
-    var onTruc = function(event) {
-        console.log('TRUC');
-        createDiv(event.type + ': ' +event.data);
-    };
-
     eventSource.addEventListener("open", onOpen);
     eventSource.addEventListener("message", onMessage);
-    eventSource.addEventListener("truc", onTruc);
     eventSource.addEventListener("error", onError);
 </script>
 </body>
