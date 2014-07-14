@@ -2,6 +2,7 @@ package com.geowarin
 
 import com.geowarin.model.Lunch
 import com.geowarin.service.LunchService
+import com.geowarin.stream.EventStream
 import com.geowarin.utils.DateUtils
 import com.mongodb.Bytes
 import com.mongodb.DBCollection
@@ -21,6 +22,8 @@ import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 import java.util.concurrent.Callable
 
+import static com.geowarin.stream.EventStream.withEventStream
+
 @Configuration
 @ComponentScan
 @EnableAutoConfiguration
@@ -33,23 +36,18 @@ class Application {
     }
 
     class LunchUpdateReader implements Runnable {
-        private final PrintWriter writer
         private LunchUpdateFinder lunchFinder
+        private EventStream stream
 
-        LunchUpdateReader(PrintWriter writer, LunchUpdateFinder lunchFinder) {
+        LunchUpdateReader(EventStream stream, LunchUpdateFinder lunchFinder) {
+            this.stream = stream
             this.lunchFinder = lunchFinder
-            this.writer = writer
         }
 
         void run() {
             while (true) {
                 Lunch lunch = lunchFinder.call()
-                writer.println('retry: 10000')
-                writer.println('event: truc')
-//                writer.println("id: ${lunch.time}")
-//                writer.println("data: new lunch !! at ${lunch.time}\n")
-                writer.println("data: Lunch updated : ${lunch}\n")
-                writer.flush()
+                stream.write("Lunch updated : ${lunch}")
             }
         }
     }
@@ -61,6 +59,7 @@ class Application {
 
             def now = DateUtils.currentBSONTimeStamp()
             cursor = opLog.find(ts: ['$gt': now], 'o._id' : new ObjectId(lunchId), ns: 'stream.lunch', op: 'u')
+//            cursor = opLog.find(ts: ['$gt': now], ns: 'stream.lunch', op: 'u')
                     .addOption(Bytes.QUERYOPTION_TAILABLE)
                     .addOption(Bytes.QUERYOPTION_AWAITDATA)
         }
@@ -84,27 +83,16 @@ class Application {
     LunchService lunchService
 
     @RequestMapping('events')
-    DeferredResult<String> event(HttpServletRequest request, HttpServletResponse response) {
+    DeferredResult event2(HttpServletRequest request, HttpServletResponse response) {
 
-        DeferredResult<String> result = new DeferredResult<String>()
+        return withEventStream(request, response) { EventStream stream ->
 
-        response.addHeader('Content-Type', 'text/event-stream')
-        response.addHeader('Content-Control', 'no-cache')
-        response.addHeader('Access-Control-Allow-Origin', '*')
-        response.characterEncoding = 'UTF-8'
-
-        String lastEventId = request.getHeader('Last-Event-ID')
-        Number eventId = lastEventId ? lastEventId.toLong() : 0
-
-        def randomLunch = lunchService.getRandomLunch()
-        println "Will query updates for lunch ${randomLunch.name} - id = ${randomLunch.id}"
-
-        new LunchUpdateReader(response.writer, new LunchUpdateFinder(randomLunch.id, opLogs)).run()
-
-        result.onTimeout {
-            println 'Timeout'
+            def randomLunch = lunchService.getRandomLunch()
+            println "Will query updates for lunch ${randomLunch.name} - id = ${randomLunch.id}"
+            new LunchUpdateReader(stream, new LunchUpdateFinder(randomLunch.id, opLogs)).run()
         }
-
-        return result
     }
+
+
+
 }

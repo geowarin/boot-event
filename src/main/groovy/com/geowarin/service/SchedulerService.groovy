@@ -38,7 +38,7 @@ class SchedulerService {
                 lunchToUpdate.time = DateUtils.timestamp()
                 println "Updated $lunchName time"
                 break
-            case 3:
+            case 2:
                 println 'Nothing'
                 break
         }

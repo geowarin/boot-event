@@ -14,7 +14,7 @@ import java.time.ZoneOffset
  */
 class DateUtils {
     static long timestamp() {
-        LocalDateTime.now().plusSeconds(10).toEpochSecond(ZoneOffset.UTC)
+        LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
     }
 
     static BSONTimestamp currentBSONTimeStamp() {
