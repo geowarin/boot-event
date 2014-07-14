@@ -35,7 +35,7 @@ class Application {
         SpringApplication.run Application, args
     }
 
-    class LunchUpdateReader implements Runnable {
+    class LunchUpdateReader {
         private LunchUpdateFinder lunchFinder
         private EventStream stream
 
@@ -58,20 +58,15 @@ class Application {
         LunchUpdateFinder(def lunchId, DBCollection opLog) {
 
             def now = DateUtils.currentBSONTimeStamp()
-            cursor = opLog.find(ts: ['$gt': now], 'o._id' : new ObjectId(lunchId), ns: 'stream.lunch', op: 'u')
-//            cursor = opLog.find(ts: ['$gt': now], ns: 'stream.lunch', op: 'u')
+            cursor = opLog.find(ts: ['$gt': now], 'o._id': new ObjectId(lunchId), ns: 'stream.lunch', op: 'u')
                     .addOption(Bytes.QUERYOPTION_TAILABLE)
                     .addOption(Bytes.QUERYOPTION_AWAITDATA)
         }
 
         Lunch call() throws Exception {
-            while (true) {
-                def update = cursor.next()
-
-                def lunchObj = update.o
-                println lunchObj
-                return new Lunch(time: lunchObj.time, name: lunchObj.name)
-            }
+            def update = cursor.next()
+            def lunchObj = update.o
+            return new Lunch(time: lunchObj.time, name: lunchObj.name)
         }
     }
 
@@ -92,7 +87,6 @@ class Application {
             new LunchUpdateReader(stream, new LunchUpdateFinder(randomLunch.id, opLogs)).run()
         }
     }
-
 
 
 }
