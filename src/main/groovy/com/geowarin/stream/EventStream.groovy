@@ -26,11 +26,17 @@ class EventStream {
     }
 
     void write(Object data) {
+        println "Sent $data to client"
         writer.println("retry: ${CLIENT_RETRY_TIMEOUT}")
 //        writer.println('event: truc')
 //                writer.println("id: ${lunch.time}")
         writer.println("data: ${data}\n")
         writer.flush()
+        response.flushBuffer()
+    }
+
+    def close() {
+        result.setResult(null)
     }
 
     static DeferredResult withEventStream(HttpServletRequest request, HttpServletResponse response, Closure<DeferredResult> block) {
@@ -45,12 +51,22 @@ class EventStream {
         Number eventId = lastEventId ? lastEventId.toLong() : 0
 
         def stream = new EventStream(response, eventId)
-        block.call(stream)
+
+        try {
+            block.call(stream)
+        } catch (Exception ignored) {
+            System.err.println("Connection lost")
+        }
 
         result.onTimeout {
             println 'Timeout'
         }
 
+        result.onCompletion {
+            println 'kikoo'
+        }
+
+        println 'Finished'
         return result
     }
 }

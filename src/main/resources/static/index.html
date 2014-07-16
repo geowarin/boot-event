@@ -10,6 +10,8 @@
 
 <body>
 <!--<script src="js/eventsource.js"></script>-->
+<button type="button" onclick="stop()">Stop</button>
+
 <script>
     var eventSource = new EventSource("/events");
 
@@ -17,6 +19,11 @@
         var div = document.createElement("div");
         div.appendChild(document.createTextNode(message));
         document.body.appendChild(div);
+    }
+
+    function stop() {
+        console.log('Stop');
+        eventSource.close()
     }
 
     var onMessage = function (event) {

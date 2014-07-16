@@ -32,14 +32,11 @@ class SchedulerService {
         switch (random.nextInt(3)) {
             case 0:
                 lunchToUpdate.name = shuffleName(lunchName)
-                println "Changed name from $lunchName to ${lunchToUpdate.name}"
                 break
             case 1:
                 lunchToUpdate.time = DateUtils.timestamp()
-                println "Updated $lunchName time"
                 break
             case 2:
-                println 'Nothing'
                 break
         }
 
